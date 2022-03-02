@@ -19,6 +19,11 @@ class DrawingScreen extends StatefulWidget {
 }
 
 class _DrawingScreenState extends State<DrawingScreen> {
+  Map<String, String> data = {
+    "nickname": "_nameController.text",
+    "name": "test"
+  };
+
   GlobalKey globalKey = GlobalKey();
   ui.Image image;
 
@@ -27,6 +32,9 @@ class _DrawingScreenState extends State<DrawingScreen> {
   DrawingPainter drawingPainter;
 
   var imgBytes = ByteData(160);
+
+  ScrollController _scrollController = ScrollController();
+  List<Map> messages = [];
 
   Offset testoffset = const Offset(150, 360);
   Color selectedColor = Colors.black;
@@ -78,6 +86,20 @@ class _DrawingScreenState extends State<DrawingScreen> {
             //.setExtraHeaders({'foo': 'bar'}) // optional
             .build());
     socket.connect();
+    print(data['nickname']);
+
+    socket.emit('join-game', data);
+
+    socket.on('msg', (msgData) {
+      setState(() {
+        messages.add(msgData);
+      });
+
+      _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent + 70,
+          duration: Duration(milliseconds: 200),
+          curve: Curves.easeInOut);
+    });
 
     // setUpSocketListner();
     super.initState();
@@ -106,11 +128,38 @@ class _DrawingScreenState extends State<DrawingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: <Widget>[
+                    Flexible(
+                      child: Container(
+                          height: MediaQuery.of(context).size.height * 0.3,
+                          child: ListView.builder(
+                              controller: _scrollController,
+                              shrinkWrap: true,
+                              itemCount: messages.length,
+                              itemBuilder: (context, index) {
+                                var msg = messages[index].values;
+                                print(msg);
+                                return ListTile(
+                                  title: Text(
+                                    msg.elementAt(0),
+                                    style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Text(
+                                    msg.elementAt(1),
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 16),
+                                  ),
+                                );
+                              })),
+                    ),
+
                     Padding(
-                      padding: const EdgeInsets.all(1.0),
+                      padding: const EdgeInsets.fromLTRB(1, 8, 1, 1),
                       child: Container(
                         width: width * 0.95,
-                        height: height * 0.72,
+                        height: height * 0.45, //0.72,
                         decoration: BoxDecoration(
                             borderRadius:
                                 BorderRadius.all(Radius.circular(20.0)),
@@ -250,6 +299,33 @@ class _DrawingScreenState extends State<DrawingScreen> {
                                   });
                                 }),
                           ),
+                          /* Flexible(
+                            child: Container(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.4,
+                                child: ListView.builder(
+                                    controller: _scrollController,
+                                    shrinkWrap: true,
+                                    itemCount: messages.length,
+                                    itemBuilder: (context, index) {
+                                      var msg = messages[index].values;
+                                      print(msg);
+                                      return ListTile(
+                                        title: Text(
+                                          msg.elementAt(0),
+                                          style: const TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 19,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        subtitle: Text(
+                                          msg.elementAt(1),
+                                          style: const TextStyle(
+                                              color: Colors.grey, fontSize: 16),
+                                        ),
+                                      );
+                                    })),
+                          ),*/
                           /*ElevatedButton(
                         child: Text('save'),
                         onPressed: () {
