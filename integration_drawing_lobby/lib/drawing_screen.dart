@@ -3,13 +3,17 @@ import 'dart:typed_data';
 import 'dart:ui';
 import 'dart:ui' as ui;
 
+import 'package:PIM_Mokhtar/widgets/time_state.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+import 'widgets/progress_bar.dart';
 
 class DrawingScreen extends StatefulWidget {
   const DrawingScreen({Key key}) : super(key: key);
@@ -32,13 +36,13 @@ class _DrawingScreenState extends State<DrawingScreen> {
   DrawingPainter drawingPainter;
 
   var imgBytes = ByteData(160);
-
+  var isLoadingSave = true;
   ScrollController _scrollController = ScrollController();
   List<Map> messages = [];
 
   Offset testoffset = const Offset(150, 360);
   Color selectedColor = Colors.black;
-  double strokeWidth = 5;
+  double strokeWidth = 3;
   List<DrawingPoint> drawingPoints = [];
   bool isPoint = false;
 
@@ -114,48 +118,73 @@ class _DrawingScreenState extends State<DrawingScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: RepaintBoundary(
-        key: globalKey,
-        child: Container(
-          color: Colors.white,
-          child: Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(color: Colors.orange[400]),
-              ),
-              Center(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: <Widget>[
-                    Flexible(
-                      child: Container(
-                          height: MediaQuery.of(context).size.height * 0.3,
-                          child: ListView.builder(
-                              controller: _scrollController,
-                              shrinkWrap: true,
-                              itemCount: messages.length,
-                              itemBuilder: (context, index) {
-                                var msg = messages[index].values;
-                                print(msg);
-                                return ListTile(
-                                  title: Text(
-                                    msg.elementAt(0),
-                                    style: const TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 19,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  subtitle: Text(
-                                    msg.elementAt(1),
-                                    style: const TextStyle(
-                                        color: Colors.grey, fontSize: 16),
-                                  ),
-                                );
-                              })),
+      body: Container(
+        color: Colors.white,
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(color: Colors.orange[400]),
+            ),
+            Center(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  Flexible(
+                    child: Container(
+                        height: MediaQuery.of(context).size.height * 0.3,
+                        child: ListView.builder(
+                            controller: _scrollController,
+                            shrinkWrap: true,
+                            itemCount: messages.length,
+                            itemBuilder: (context, index) {
+                              var msg = messages[index].values;
+                              print(msg);
+                              return ListTile(
+                                title: Text(
+                                  msg.elementAt(0),
+                                  style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text(
+                                  msg.elementAt(1),
+                                  style: const TextStyle(
+                                      color: Colors.grey, fontSize: 16),
+                                ),
+                              );
+                            })),
+                  ),
+                  ChangeNotifierProvider<TimeState>(
+                    create: (context) => TimeState(),
+                    child: Column(
+                      children: [
+                        Consumer<TimeState>(
+                          builder: (context, value, child) => ProgressBar(
+                            value: 10 - value.time,
+                            totalvalue: 10,
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Consumer<TimeState>(
+                            builder: (context, value, child) => ElevatedButton(
+                                onPressed: () {
+                                  Timer.periodic(Duration(seconds: 1), (timer) {
+                                    value.time += 1;
+                                    if (value.time == 10) {
+                                      timer.cancel();
+                                    }
+                                  });
+                                },
+                                child: Text("zz"))),
+                      ],
                     ),
+                  ),
 
-                    Padding(
+                  RepaintBoundary(
+                    key: globalKey,
+                    child: Padding(
                       padding: const EdgeInsets.fromLTRB(1, 8, 1, 1),
                       child: Container(
                         width: width * 0.95,
@@ -248,107 +277,74 @@ class _DrawingScreenState extends State<DrawingScreen> {
                         ),
                       ),
                     ),
-                    //generate image
-                    /* imgBytes != null
-                                 ? Center(
-                                    child: Image.memory(
-                                      Uint8List.view(imgBytes.buffer),
-                                  width: MediaQuery.of(context).size.height,
-                                height: MediaQuery.of(context).size.width,
-                                      ))
-                                  : Container(),*/
+                  ),
+                  //generate image
+                  /* imgBytes != null
+                               ? Center(
+                                  child: Image.memory(
+                                    Uint8List.view(imgBytes.buffer),
+                                width: MediaQuery.of(context).size.height,
+                              height: MediaQuery.of(context).size.width,
+                                    ))
+                                : Container(),*/
 
-                    Container(
-                      height: height * 0.10,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Slider(
-                            min: 0,
-                            max: 10,
-                            value: strokeWidth,
-                            onChanged: (val) =>
-                                setState(() => strokeWidth = val),
-                          ),
-                          FloatingActionButton(
-                              tooltip: "Erase",
-                              onPressed: () => setState(() {
-                                    selectedColor = Colors.white;
-                                  }),
-                              child: Icon(FluentIcons.eraser_20_filled)),
-                          Padding(
-                            padding: EdgeInsets.only(left: 10),
-                            child: FloatingActionButton(
-                                heroTag: "clear",
-                                child: Icon(Icons.delete),
-                                tooltip: "Clear",
-                                onPressed: () {
-                                  setState(() {
-                                    drawingPoints = [];
-                                    //clean screen
-                                    image = null;
-                                    sendOffset(
-                                        null,
-                                        null,
-                                        strokeWidth,
-                                        MediaQuery.of(context).size.height,
-                                        MediaQuery.of(context).size.width,
-                                        selectedColor.toString(),
-                                        false,
-                                        true);
-                                  });
+                  Container(
+                    height: height * 0.10,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Slider(
+                          min: 1,
+                          max: 10,
+                          value: strokeWidth,
+                          onChanged: (val) => setState(() => strokeWidth = val),
+                        ),
+                        FloatingActionButton(
+                            tooltip: "Erase",
+                            onPressed: () => setState(() {
+                                  selectedColor = Colors.white;
                                 }),
-                          ),
-                          /* Flexible(
-                            child: Container(
-                                height:
-                                    MediaQuery.of(context).size.height * 0.4,
-                                child: ListView.builder(
-                                    controller: _scrollController,
-                                    shrinkWrap: true,
-                                    itemCount: messages.length,
-                                    itemBuilder: (context, index) {
-                                      var msg = messages[index].values;
-                                      print(msg);
-                                      return ListTile(
-                                        title: Text(
-                                          msg.elementAt(0),
-                                          style: const TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 19,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        subtitle: Text(
-                                          msg.elementAt(1),
-                                          style: const TextStyle(
-                                              color: Colors.grey, fontSize: 16),
-                                        ),
-                                      );
-                                    })),
-                          ),*/
-                          /*ElevatedButton(
-                        child: Text('save'),
-                        onPressed: () {
-                          save();
-                        }),*/
-                        ],
-                      ),
-
-                      /*  Positioned(
-                         top: 0,
-                            right: 0,
-                       child: SizedBox(
-                                     width: MediaQuery.of(context).size.width,
-                                   height: MediaQuery.of(context).size.height,
-                               child: Image.memory(imgbyte),
-                              ),
-                                   ),*/
+                            child: Icon(FluentIcons.eraser_20_filled)),
+                        SizedBox(
+                          width: 10,
+                        ),
+                        FloatingActionButton(
+                            heroTag: "clear",
+                            child: Icon(Icons.delete),
+                            tooltip: "Clear",
+                            onPressed: () {
+                              setState(() {
+                                drawingPoints = [];
+                                //clean screen
+                                image = null;
+                                sendOffset(
+                                    null,
+                                    null,
+                                    strokeWidth,
+                                    MediaQuery.of(context).size.height,
+                                    MediaQuery.of(context).size.width,
+                                    selectedColor.toString(),
+                                    false,
+                                    true);
+                              });
+                            }),
+                        SizedBox(
+                          width: 10,
+                        ),
+                        isLoadingSave
+                            ? FloatingActionButton(
+                                child: Icon(Icons.save),
+                                onPressed: () async {
+                                  await save();
+                                })
+                            : const Center(child: CircularProgressIndicator())
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: BottomAppBar(
@@ -390,6 +386,9 @@ class _DrawingScreenState extends State<DrawingScreen> {
   }
 
   Future<void> save() async {
+    setState(() {
+      isLoadingSave = false;
+    });
     RenderRepaintBoundary boundary =
         globalKey.currentContext.findRenderObject();
     image = await boundary.toImage(pixelRatio: 8.0);
@@ -407,7 +406,35 @@ class _DrawingScreenState extends State<DrawingScreen> {
       isReturnImagePathOfIOS: true,
     );
     print(saved);
-    //generateImage();
+
+    if (saved['isSuccess'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.black26,
+          content: const Text(
+            "Drawing Saved",
+            textAlign: TextAlign.center,
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          duration: Duration(seconds: 1)));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.black26,
+          content: const Text(
+            "Error",
+            textAlign: TextAlign.center,
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          duration: Duration(seconds: 1)));
+    }
+    setState(() {
+      isLoadingSave = true;
+    }); //generateImage();
   }
 
   void generateImage() async {
