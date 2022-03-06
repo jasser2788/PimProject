@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 class ProgressBar extends StatelessWidget {
   final int value;
   final int totalvalue;
-  const ProgressBar({Key key, this.value, this.totalvalue});
+  final VoidCallback onStart;
+  const ProgressBar({Key key, this.value, this.totalvalue, this.onStart});
 
   @override
   Widget build(BuildContext context) {

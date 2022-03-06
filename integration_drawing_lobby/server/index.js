@@ -53,9 +53,10 @@ io.on('connection', (socket) => {
                 isPartyLeader: true,
             }
             room.players.push(player);
-            room = await room.save();
+           
             socket.join(name);
-            io.to(name).emit('updateRoom', room);
+            io.to(name).emit('updateRoom', room); 
+            room = await room.save();
         } catch(err) {
             console.log(err);
         }
@@ -116,9 +117,12 @@ io.on('connection', (socket) => {
         }
     })
 
-    socket.on('change-turn', async(name) => {
+   socket.on('change-turn', async(name) => {
+       
         try {
             let room = await Room.findOne({name});
+            console.log(room.currentRound)
+
             let idx = room.turnIndex;
             if(idx +1 === room.players.length) {
                 room.currentRound+=1;
