@@ -26,6 +26,7 @@ class PaintScreen extends StatefulWidget {
 
 class _PaintScreenState extends State<PaintScreen> {
   // instantiation
+  var a;
   bool isjoin;
   GlobalKey globalKey = GlobalKey();
   ui.Image image;
@@ -247,6 +248,46 @@ class _PaintScreenState extends State<PaintScreen> {
     super.dispose();
   }
 
+  Timer _timer;
+  int _start = 10;
+
+  /*timetest(TimeState value) {
+    if (value.time <= 10) {
+      print(value.time);
+      Timer.periodic(Duration(seconds: 1), (timer) {
+        value.time += 1;
+        if (value.time == 10) {
+          timer.cancel();
+        }
+      });
+    }
+    return true;
+  }*/
+  var test = false;
+  startTimer() {
+    if (!test) {
+      test = true;
+      _timer = Timer.periodic(
+        Duration(seconds: 1),
+        (Timer timer) {
+          if (_start == 0) {
+            setState(() {
+              timer.cancel();
+            });
+          } else {
+            setState(() {
+              _start--;
+            });
+          }
+        },
+      );
+    }
+    return ProgressBar(
+      value: 10 - _start,
+      totalvalue: 10,
+    );
+  }
+
   var isDrowing = false;
   @override
   Widget build(BuildContext context) {
@@ -255,47 +296,268 @@ class _PaintScreenState extends State<PaintScreen> {
     drawingPainter = DrawingPainter(drawingPoints /*, image*/);
 
     return Scaffold(
-        //resizeToAvoidBottomInset: false,
-        backgroundColor: Colors.white,
-        body: dataOfRoom != null
-            ? dataOfRoom['isJoin'] != true
-                ? Container(
-                    color: Colors.white,
-                    child: Stack(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(color: Colors.orange[400]),
-                        ),
-                        dataOfRoom['turn']['nickname'] !=
-                                widget.data['nickname']
-                            ? Center(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                          0, 20, 0, 10),
+      //resizeToAvoidBottomInset: false,
+      backgroundColor: Colors.white,
+      body: dataOfRoom != null
+          ? dataOfRoom['isJoin'] != true
+              ? Container(
+                  color: Colors.white,
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(color: Colors.orange[400]),
+                      ),
+                      dataOfRoom['turn']['nickname'] != widget.data['nickname']
+                          ? Center(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.fromLTRB(0, 20, 0, 10),
+                                  ),
+
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: textBlankWidget,
+                                  ),
+
+                                  ElevatedButton(onPressed: () {
+                                    _socket.emit(
+                                        'change-turn', dataOfRoom['name']);
+                                  }),
+
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.fromLTRB(0, 5, 0, 10),
+                                    child: Container(
+                                      width: width * 0.95,
+                                      height: height * 0.45,
+                                      decoration: const BoxDecoration(
+                                          borderRadius: BorderRadius.all(
+                                              Radius.circular(20.0)),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.white,
+                                              spreadRadius: 1.0,
+                                            )
+                                          ]),
+                                      child: Expanded(
+                                        child: ClipRRect(
+                                          borderRadius: const BorderRadius.all(
+                                              Radius.circular(20.0)),
+                                          child: CustomPaint(
+                                            painter: drawingPainter,
+                                            child: Container(
+                                              height: MediaQuery.of(context)
+                                                  .size
+                                                  .height,
+                                              width: MediaQuery.of(context)
+                                                  .size
+                                                  .width,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
+                                  ),
 
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                      children: textBlankWidget,
+                                  // Displaying messages
+                                  Row(
+                                    children: [
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) {},
+                                          ),
+                                        ),
+                                      ),
+                                      Flexible(
+                                        child: Container(
+                                            height: MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                0.3,
+                                            child: ListView.builder(
+                                                controller: _scrollController,
+                                                shrinkWrap: true,
+                                                itemCount: messages.length,
+                                                itemBuilder: (context, index) {
+                                                  var msg =
+                                                      messages[index].values;
+                                                  print(msg);
+                                                  return ListTile(
+                                                    title: Text(
+                                                      msg.elementAt(0),
+                                                      style: const TextStyle(
+                                                          color: Colors.black,
+                                                          fontSize: 19,
+                                                          fontWeight:
+                                                              FontWeight.bold),
+                                                    ),
+                                                    subtitle: Text(
+                                                      msg.elementAt(1),
+                                                      style: const TextStyle(
+                                                          color: Colors.grey,
+                                                          fontSize: 16),
+                                                    ),
+                                                  );
+                                                })),
+                                      ),
+                                    ],
+                                  ),
+                                  Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: Container(
+                                        margin: EdgeInsets.symmetric(
+                                            horizontal: 20),
+                                        child: TextField(
+                                          readOnly: isTextInputReadOnly,
+                                          controller: controller,
+                                          onSubmitted: (value) {
+                                            print(value.trim());
+                                            if (value.trim().isNotEmpty) {
+                                              Map map = {
+                                                'username':
+                                                    widget.data['nickname'],
+                                                'msg': value.trim(),
+                                                'word': dataOfRoom['word'],
+                                                'roomName': widget.data['name'],
+                                              };
+                                              _socket.emit('msg', map);
+                                              controller.clear();
+                                            }
+                                          },
+                                          autocorrect: false,
+                                          decoration: InputDecoration(
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: const BorderSide(
+                                                  color: Colors.transparent),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: const BorderSide(
+                                                  color: Colors.transparent),
+                                            ),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 14),
+                                            filled: true,
+                                            fillColor: const Color(0xffF5F5FA),
+                                            hintText: 'Your Guess',
+                                            hintStyle: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                          textInputAction: TextInputAction.done,
+                                        )),
+                                  )
+                                ],
+                              ),
+                            )
+                          //drawer screen
+                          : Center(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: <Widget>[
+                                  Center(
+                                      child: Text(dataOfRoom['word'],
+                                          style: TextStyle(fontSize: 30))),
+                                  Flexible(
+                                    child: Container(
+                                        height:
+                                            MediaQuery.of(context).size.height *
+                                                0.3,
+                                        child: ListView.builder(
+                                            controller: _scrollController,
+                                            shrinkWrap: true,
+                                            itemCount: messages.length,
+                                            itemBuilder: (context, index) {
+                                              var msg = messages[index].values;
+                                              print(msg);
+                                              return ListTile(
+                                                title: Text(
+                                                  msg.elementAt(0),
+                                                  style: const TextStyle(
+                                                      color: Colors.black,
+                                                      fontSize: 19,
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                ),
+                                                subtitle: Text(
+                                                  msg.elementAt(1),
+                                                  style: const TextStyle(
+                                                      color: Colors.grey,
+                                                      fontSize: 16),
+                                                ),
+                                              );
+                                            })),
+                                  ),
+                                  /*  ChangeNotifierProvider<TimeState>(
+                                    create: (context) => TimeState(),
+                                    child: Column(
+                                      children: [
+                                        Consumer<TimeState>(
+                                          builder: (context, value, child) =>
+                                              ProgressBar(
+                                            value: 10 - value.time,
+                                            totalvalue: 10,
+                                          ),
+                                        ),
+                                        SizedBox(height: 10),
+                                        Consumer<TimeState>(
+                                            builder: (context, value, child) =>
+                                                timetest(value)
+                                                    ? ElevatedButton(
+                                                        onPressed: () {
+                                                          Timer.periodic(
+                                                              Duration(
+                                                                  seconds: 1),
+                                                              (timer) {
+                                                            value.time += 1;
+                                                            if (value.time ==
+                                                                10) {
+                                                              timer.cancel();
+                                                            }
+                                                          });
+                                                        },
+                                                        child: Text("zz"))
+                                                    : ElevatedButton(
+                                                        onPressed: () {},
+                                                        child: Text("aaa"))),
+                                      ],
                                     ),
+                                  ),*/
 
-                                    ElevatedButton(onPressed: () {
-                                      _socket.emit(
-                                          'change-turn', dataOfRoom['name']);
-                                    }),
-
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                          0, 5, 0, 10),
+                                  /* ProgressBar(
+                                    value: 10 - _start,
+                                    totalvalue: 10,
+                                  ),
+                                  startTimer()
+                                      ? ElevatedButton(
+                                          onPressed: () {}, child: Text("aaa"))
+                                      : ElevatedButton(
+                                          onPressed: () {}, child: Text("bbb")),*/
+                                  startTimer(),
+                                  Text("$_start"),
+                                  RepaintBoundary(
+                                    // key: globalKey,
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.fromLTRB(1, 8, 1, 1),
                                       child: Container(
                                         width: width * 0.95,
-                                        height: height * 0.45,
-                                        decoration: const BoxDecoration(
+                                        height: height * 0.45, //0.72,
+                                        decoration: BoxDecoration(
                                             borderRadius: BorderRadius.all(
                                                 Radius.circular(20.0)),
                                             boxShadow: [
@@ -304,287 +566,134 @@ class _PaintScreenState extends State<PaintScreen> {
                                                 spreadRadius: 1.0,
                                               )
                                             ]),
-                                        child: Expanded(
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                const BorderRadius.all(
-                                                    Radius.circular(20.0)),
-                                            child: CustomPaint(
-                                              painter: drawingPainter,
-                                              child: Container(
-                                                height: MediaQuery.of(context)
+                                        child: GestureDetector(
+                                          onPanStart: (details) {
+                                            sendOffset(
+                                                details.localPosition.dx,
+                                                details.localPosition.dy,
+                                                strokeWidth,
+                                                MediaQuery.of(context)
                                                     .size
                                                     .height,
-                                                width: MediaQuery.of(context)
+                                                MediaQuery.of(context)
                                                     .size
                                                     .width,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                                                selectedColor.toString(),
+                                                false,
+                                                false);
 
-                                    // Displaying messages
-                                    Row(
-                                      children: [
-                                        ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (context) {},
-                                            ),
-                                          ),
-                                        ),
-                                        Flexible(
-                                          child: Container(
-                                              height: MediaQuery.of(context)
+                                            setState(() {
+                                              drawingPoints.add(
+                                                DrawingPoint(
+                                                  details.localPosition,
+                                                  Paint()
+                                                    ..color = selectedColor
+                                                    ..isAntiAlias = true
+                                                    ..strokeWidth = strokeWidth
+                                                    ..strokeCap =
+                                                        StrokeCap.round,
+                                                ),
+                                              );
+                                            });
+                                          },
+                                          onPanUpdate: (details) {
+                                            //  a = drawingPoints.length;
+
+                                            sendOffset(
+                                                details.localPosition.dx,
+                                                details.localPosition.dy,
+                                                strokeWidth,
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .height,
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .width,
+                                                selectedColor.toString(),
+                                                false,
+                                                false);
+                                            setState(() {
+                                              drawingPoints.add(
+                                                DrawingPoint(
+                                                  details.localPosition,
+                                                  Paint()
+                                                    ..color = selectedColor
+                                                    ..isAntiAlias = true
+                                                    ..strokeWidth = strokeWidth
+                                                    ..strokeCap =
+                                                        StrokeCap.round,
+                                                ),
+                                              );
+                                            });
+                                            // generateImage();
+                                          },
+                                          onPanEnd: (details) {
+                                            setState(() {
+                                              sendOffset(
+                                                  null,
+                                                  null,
+                                                  strokeWidth,
+                                                  MediaQuery.of(context)
                                                       .size
-                                                      .height *
-                                                  0.3,
-                                              child: ListView.builder(
-                                                  controller: _scrollController,
-                                                  shrinkWrap: true,
-                                                  itemCount: messages.length,
-                                                  itemBuilder:
-                                                      (context, index) {
-                                                    var msg =
-                                                        messages[index].values;
-                                                    print(msg);
-                                                    return ListTile(
-                                                      title: Text(
-                                                        msg.elementAt(0),
-                                                        style: const TextStyle(
-                                                            color: Colors.black,
-                                                            fontSize: 19,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .bold),
-                                                      ),
-                                                      subtitle: Text(
-                                                        msg.elementAt(1),
-                                                        style: const TextStyle(
-                                                            color: Colors.grey,
-                                                            fontSize: 16),
-                                                      ),
-                                                    );
-                                                  })),
-                                        ),
-                                      ],
-                                    ),
-                                    Align(
-                                      alignment: Alignment.bottomCenter,
-                                      child: Container(
-                                          margin: EdgeInsets.symmetric(
-                                              horizontal: 20),
-                                          child: TextField(
-                                            readOnly: isTextInputReadOnly,
-                                            controller: controller,
-                                            onSubmitted: (value) {
-                                              print(value.trim());
-                                              if (value.trim().isNotEmpty) {
-                                                Map map = {
-                                                  'username':
-                                                      widget.data['nickname'],
-                                                  'msg': value.trim(),
-                                                  'word': dataOfRoom['word'],
-                                                  'roomName':
-                                                      widget.data['name'],
-                                                };
-                                                _socket.emit('msg', map);
-                                                controller.clear();
-                                              }
-                                            },
-                                            autocorrect: false,
-                                            decoration: InputDecoration(
-                                              border: OutlineInputBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                borderSide: const BorderSide(
-                                                    color: Colors.transparent),
-                                              ),
-                                              enabledBorder: OutlineInputBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                borderSide: const BorderSide(
-                                                    color: Colors.transparent),
-                                              ),
-                                              contentPadding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 14),
-                                              filled: true,
-                                              fillColor:
-                                                  const Color(0xffF5F5FA),
-                                              hintText: 'Your Guess',
-                                              hintStyle: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                              ),
-                                            ),
-                                            textInputAction:
-                                                TextInputAction.done,
-                                          )),
-                                    )
-                                  ],
-                                ),
-                              )
-                            //drawer screen
-                            : Center(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: <Widget>[
-                                    Center(
-                                        child: Text(dataOfRoom['word'],
-                                            style: TextStyle(fontSize: 30))),
-                                    Flexible(
-                                      child: Container(
-                                          height: MediaQuery.of(context)
-                                                  .size
-                                                  .height *
-                                              0.3,
-                                          child: ListView.builder(
-                                              controller: _scrollController,
-                                              shrinkWrap: true,
-                                              itemCount: messages.length,
-                                              itemBuilder: (context, index) {
-                                                var msg =
-                                                    messages[index].values;
-                                                print(msg);
-                                                return ListTile(
-                                                  title: Text(
-                                                    msg.elementAt(0),
-                                                    style: const TextStyle(
-                                                        color: Colors.black,
-                                                        fontSize: 19,
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                  ),
-                                                  subtitle: Text(
-                                                    msg.elementAt(1),
-                                                    style: const TextStyle(
-                                                        color: Colors.grey,
-                                                        fontSize: 16),
-                                                  ),
-                                                );
-                                              })),
-                                    ),
-                                    ChangeNotifierProvider<TimeState>(
-                                      create: (context) => TimeState(),
-                                      child: Column(
-                                        children: [
-                                          Consumer<TimeState>(
-                                            builder: (context, value, child) =>
-                                                ProgressBar(
-                                              value: 10 - value.time,
-                                              totalvalue: 10,
-                                            ),
-                                          ),
-                                          SizedBox(height: 10),
-                                          Consumer<TimeState>(
-                                              builder:
-                                                  (context, value, child) =>
-                                                      ElevatedButton(
-                                                          onPressed: () {
-                                                            Timer.periodic(
-                                                                Duration(
-                                                                    seconds: 1),
-                                                                (timer) {
-                                                              value.time += 1;
-                                                              if (value.time ==
-                                                                  10) {
-                                                                timer.cancel();
-                                                              }
-                                                            });
-                                                          },
-                                                          child: Text("zz"))),
-                                        ],
-                                      ),
-                                    ),
+                                                      .height,
+                                                  MediaQuery.of(context)
+                                                      .size
+                                                      .width,
+                                                  selectedColor.toString(),
+                                                  true,
+                                                  false);
 
-                                    RepaintBoundary(
-                                      // key: globalKey,
-                                      child: Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                            1, 8, 1, 1),
-                                        child: Container(
-                                          width: width * 0.95,
-                                          height: height * 0.45, //0.72,
-                                          decoration: BoxDecoration(
+                                              drawingPoints.add(null);
+                                            });
+                                            //generateImage();
+                                          },
+                                          child: Expanded(
+                                            child: ClipRRect(
                                               borderRadius: BorderRadius.all(
                                                   Radius.circular(20.0)),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.white,
-                                                  spreadRadius: 1.0,
-                                                )
-                                              ]),
-                                          child: GestureDetector(
-                                            onPanStart: (details) {
-                                              sendOffset(
-                                                  details.localPosition.dx,
-                                                  details.localPosition.dy,
-                                                  strokeWidth,
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .height,
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .width,
-                                                  selectedColor.toString(),
-                                                  false,
-                                                  false);
+                                              child: CustomPaint(
+                                                painter: drawingPainter,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  //generate image
 
+                                  Container(
+                                    height: height * 0.10,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Slider(
+                                          min: 1,
+                                          max: 10,
+                                          value: strokeWidth,
+                                          onChanged: (val) =>
+                                              setState(() => strokeWidth = val),
+                                        ),
+                                        FloatingActionButton(
+                                            tooltip: "Erase",
+                                            onPressed: () => setState(() {
+                                                  selectedColor = Colors.white;
+                                                }),
+                                            child: Icon(
+                                                FluentIcons.eraser_20_filled)),
+                                        SizedBox(
+                                          width: 10,
+                                        ),
+                                        FloatingActionButton(
+                                            heroTag: "clear",
+                                            child: Icon(Icons.delete),
+                                            tooltip: "Clear",
+                                            onPressed: () {
                                               setState(() {
-                                                drawingPoints.add(
-                                                  DrawingPoint(
-                                                    details.localPosition,
-                                                    Paint()
-                                                      ..color = selectedColor
-                                                      ..isAntiAlias = true
-                                                      ..strokeWidth =
-                                                          strokeWidth
-                                                      ..strokeCap =
-                                                          StrokeCap.round,
-                                                  ),
-                                                );
-                                              });
-                                            },
-                                            onPanUpdate: (details) {
-                                              //  a = drawingPoints.length;
-
-                                              sendOffset(
-                                                  details.localPosition.dx,
-                                                  details.localPosition.dy,
-                                                  strokeWidth,
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .height,
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .width,
-                                                  selectedColor.toString(),
-                                                  false,
-                                                  false);
-                                              setState(() {
-                                                drawingPoints.add(
-                                                  DrawingPoint(
-                                                    details.localPosition,
-                                                    Paint()
-                                                      ..color = selectedColor
-                                                      ..isAntiAlias = true
-                                                      ..strokeWidth =
-                                                          strokeWidth
-                                                      ..strokeCap =
-                                                          StrokeCap.round,
-                                                  ),
-                                                );
-                                              });
-                                              // generateImage();
-                                            },
-                                            onPanEnd: (details) {
-                                              setState(() {
+                                                drawingPoints = [];
+                                                //clean screen
+                                                image = null;
                                                 sendOffset(
                                                     null,
                                                     null,
@@ -596,105 +705,39 @@ class _PaintScreenState extends State<PaintScreen> {
                                                         .size
                                                         .width,
                                                     selectedColor.toString(),
-                                                    true,
-                                                    false);
-
-                                                drawingPoints.add(null);
+                                                    false,
+                                                    true);
                                               });
-                                              //generateImage();
-                                            },
-                                            child: Expanded(
-                                              child: ClipRRect(
-                                                borderRadius: BorderRadius.all(
-                                                    Radius.circular(20.0)),
-                                                child: CustomPaint(
-                                                  painter: drawingPainter,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
+                                            }),
+                                        SizedBox(
+                                          width: 10,
                                         ),
-                                      ),
+                                        isLoadingSave
+                                            ? FloatingActionButton(
+                                                child: Icon(Icons.save),
+                                                onPressed: () async {
+                                                  await save();
+                                                })
+                                            : const Center(
+                                                child:
+                                                    CircularProgressIndicator())
+                                      ],
                                     ),
-                                    //generate image
-
-                                    Container(
-                                      height: height * 0.10,
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Slider(
-                                            min: 1,
-                                            max: 10,
-                                            value: strokeWidth,
-                                            onChanged: (val) => setState(
-                                                () => strokeWidth = val),
-                                          ),
-                                          FloatingActionButton(
-                                              tooltip: "Erase",
-                                              onPressed: () => setState(() {
-                                                    selectedColor =
-                                                        Colors.white;
-                                                  }),
-                                              child: Icon(FluentIcons
-                                                  .eraser_20_filled)),
-                                          SizedBox(
-                                            width: 10,
-                                          ),
-                                          FloatingActionButton(
-                                              heroTag: "clear",
-                                              child: Icon(Icons.delete),
-                                              tooltip: "Clear",
-                                              onPressed: () {
-                                                setState(() {
-                                                  drawingPoints = [];
-                                                  //clean screen
-                                                  image = null;
-                                                  sendOffset(
-                                                      null,
-                                                      null,
-                                                      strokeWidth,
-                                                      MediaQuery.of(context)
-                                                          .size
-                                                          .height,
-                                                      MediaQuery.of(context)
-                                                          .size
-                                                          .width,
-                                                      selectedColor.toString(),
-                                                      false,
-                                                      true);
-                                                });
-                                              }),
-                                          SizedBox(
-                                            width: 10,
-                                          ),
-                                          isLoadingSave
-                                              ? FloatingActionButton(
-                                                  child: Icon(Icons.save),
-                                                  onPressed: () async {
-                                                    await save();
-                                                  })
-                                              : const Center(
-                                                  child:
-                                                      CircularProgressIndicator())
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                      ],
-                    ),
-                  )
-                : WaitingLobbyScreen(
-                    lobbyName: dataOfRoom['name'],
-                    noOfPlayers: dataOfRoom['players'].length,
-                    occupancy: dataOfRoom['occupancy'],
-                    players: dataOfRoom['players'],
-                  )
-            : Center(child: CircularProgressIndicator()),
-        bottomNavigationBar: isDrowing == true
+                            ),
+                    ],
+                  ),
+                )
+              : WaitingLobbyScreen(
+                  lobbyName: dataOfRoom['name'],
+                  noOfPlayers: dataOfRoom['players'].length,
+                  occupancy: dataOfRoom['occupancy'],
+                  players: dataOfRoom['players'],
+                )
+          : Center(child: CircularProgressIndicator()),
+      /* bottomNavigationBar: isDrowing == true
             ? BottomAppBar(
                 child: Container(
                   color: Colors.orange[400],
@@ -708,7 +751,8 @@ class _PaintScreenState extends State<PaintScreen> {
                   ),
                 ),
               )
-            : null);
+            : null*/
+    );
   }
 
   Widget _buildColorChose(Color color) {
