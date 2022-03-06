@@ -30,7 +30,7 @@ class _PaintScreenState extends State<PaintScreen> {
   bool isjoin;
   GlobalKey globalKey = GlobalKey();
   ui.Image image;
-  Uint8List imgbyte;
+  Uint8List imgbyte = Uint8List.fromList([0, 2, 5, 7, 42, 255]);
 
   DrawingPainter drawingPainter;
 
@@ -74,6 +74,7 @@ class _PaintScreenState extends State<PaintScreen> {
       "color": color,
       "end": end,
       "clear": clear,
+      "romName": widget.data['name']
       // "id": socket.id
     };
     _socket.emit('coordinates', messageJson);
@@ -90,40 +91,42 @@ class _PaintScreenState extends State<PaintScreen> {
       /*print((data["dx"] * MediaQuery.of(context).size.height) /
           data["scrheight"]);*/
 
-      if (this.mounted) {
-        setState(() {
-          //   print(data["color"]);
-          if (pointdata["clear"] == true) {
-            setState(() {
-              // image = null;
-              drawingPoints = [];
-            });
-          } else {
-            if (pointdata["end"] == false) {
-              drawingPoints.add(
-                DrawingPoint(
-                  point.translate(
-                      //double.parse('${pointdata["dx"]}'),
-                      // double.parse('${pointdata["dy"]}')scrwidth
-                      double.parse(
-                          '${double.parse('${pointdata["dx"]}') * MediaQuery.of(context).size.width / double.parse('${pointdata["scrwidth"]}')}'),
-                      double.parse(
-                          '${double.parse('${pointdata["dy"]}') * MediaQuery.of(context).size.height / double.parse('${pointdata["scrheight"]}')}')),
-                  Paint()
-                    ..color = color
-                    ..isAntiAlias = true
-                    ..strokeWidth = widht
-                    ..strokeCap = StrokeCap.round,
-                ),
-              );
+      if (pointdata['romName'] == widget.data['name']) {
+        if (this.mounted) {
+          setState(() {
+            //   print(data["color"]);
+            if (pointdata["clear"] == true) {
+              setState(() {
+                // image = null;
+                drawingPoints = [];
+              });
             } else {
-              drawingPoints.add(null);
+              if (pointdata["end"] == false) {
+                drawingPoints.add(
+                  DrawingPoint(
+                    point.translate(
+                        //double.parse('${pointdata["dx"]}'),
+                        // double.parse('${pointdata["dy"]}')scrwidth
+                        double.parse(
+                            '${double.parse('${pointdata["dx"]}') * MediaQuery.of(context).size.width / double.parse('${pointdata["scrwidth"]}')}'),
+                        double.parse(
+                            '${double.parse('${pointdata["dy"]}') * MediaQuery.of(context).size.height / double.parse('${pointdata["scrheight"]}')}')),
+                    Paint()
+                      ..color = color
+                      ..isAntiAlias = true
+                      ..strokeWidth = widht
+                      ..strokeCap = StrokeCap.round,
+                  ),
+                );
+              } else {
+                drawingPoints.add(null);
 
-              // drawingPoints.add(null);
-              // generateImage();
+                // drawingPoints.add(null);
+                // generateImage();
+              }
             }
-          }
-        });
+          });
+        }
       } //  print(data["id"]);
     });
   }
@@ -249,20 +252,8 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   Timer _timer;
-  int _start = 10;
+  int _start = 0;
 
-  /*timetest(TimeState value) {
-    if (value.time <= 10) {
-      print(value.time);
-      Timer.periodic(Duration(seconds: 1), (timer) {
-        value.time += 1;
-        if (value.time == 10) {
-          timer.cancel();
-        }
-      });
-    }
-    return true;
-  }*/
   var test = false;
   startTimer() {
     if (!test) {
@@ -270,13 +261,20 @@ class _PaintScreenState extends State<PaintScreen> {
       _timer = Timer.periodic(
         Duration(seconds: 1),
         (Timer timer) {
-          if (_start == 0) {
+          if (_start == 10) {
             setState(() {
+              if (dataOfRoom['turn']['nickname'] == widget.data['nickname']) {
+                _socket.emit('change-turn', dataOfRoom['name']);
+              }
+
               timer.cancel();
+              test = false;
+              _start = 0;
+              drawingPoints = [];
             });
           } else {
             setState(() {
-              _start--;
+              _start++;
             });
           }
         },
@@ -288,7 +286,6 @@ class _PaintScreenState extends State<PaintScreen> {
     );
   }
 
-  var isDrowing = false;
   @override
   Widget build(BuildContext context) {
     final double width = MediaQuery.of(context).size.width;
@@ -328,6 +325,10 @@ class _PaintScreenState extends State<PaintScreen> {
                                     _socket.emit(
                                         'change-turn', dataOfRoom['name']);
                                   }),
+                                  SizedBox(
+                                    height: 10,
+                                  ),
+                                  startTimer(),
 
                                   Padding(
                                     padding:
@@ -410,7 +411,7 @@ class _PaintScreenState extends State<PaintScreen> {
                                     ],
                                   ),
                                   Align(
-                                    alignment: Alignment.bottomCenter,
+                                    alignment: (Alignment.bottomCenter),
                                     child: Container(
                                         margin: EdgeInsets.symmetric(
                                             horizontal: 20),
@@ -548,7 +549,6 @@ class _PaintScreenState extends State<PaintScreen> {
                                       : ElevatedButton(
                                           onPressed: () {}, child: Text("bbb")),*/
                                   startTimer(),
-                                  Text("$_start"),
                                   RepaintBoundary(
                                     // key: globalKey,
                                     child: Padding(
@@ -569,18 +569,17 @@ class _PaintScreenState extends State<PaintScreen> {
                                         child: GestureDetector(
                                           onPanStart: (details) {
                                             sendOffset(
-                                                details.localPosition.dx,
-                                                details.localPosition.dy,
-                                                strokeWidth,
-                                                MediaQuery.of(context)
-                                                    .size
-                                                    .height,
-                                                MediaQuery.of(context)
-                                                    .size
-                                                    .width,
-                                                selectedColor.toString(),
-                                                false,
-                                                false);
+                                              details.localPosition.dx,
+                                              details.localPosition.dy,
+                                              strokeWidth,
+                                              MediaQuery.of(context)
+                                                  .size
+                                                  .height,
+                                              MediaQuery.of(context).size.width,
+                                              selectedColor.toString(),
+                                              false,
+                                              false,
+                                            );
 
                                             setState(() {
                                               drawingPoints.add(
@@ -600,18 +599,17 @@ class _PaintScreenState extends State<PaintScreen> {
                                             //  a = drawingPoints.length;
 
                                             sendOffset(
-                                                details.localPosition.dx,
-                                                details.localPosition.dy,
-                                                strokeWidth,
-                                                MediaQuery.of(context)
-                                                    .size
-                                                    .height,
-                                                MediaQuery.of(context)
-                                                    .size
-                                                    .width,
-                                                selectedColor.toString(),
-                                                false,
-                                                false);
+                                              details.localPosition.dx,
+                                              details.localPosition.dy,
+                                              strokeWidth,
+                                              MediaQuery.of(context)
+                                                  .size
+                                                  .height,
+                                              MediaQuery.of(context).size.width,
+                                              selectedColor.toString(),
+                                              false,
+                                              false,
+                                            );
                                             setState(() {
                                               drawingPoints.add(
                                                 DrawingPoint(
@@ -630,18 +628,19 @@ class _PaintScreenState extends State<PaintScreen> {
                                           onPanEnd: (details) {
                                             setState(() {
                                               sendOffset(
-                                                  null,
-                                                  null,
-                                                  strokeWidth,
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .height,
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .width,
-                                                  selectedColor.toString(),
-                                                  true,
-                                                  false);
+                                                null,
+                                                null,
+                                                strokeWidth,
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .height,
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .width,
+                                                selectedColor.toString(),
+                                                true,
+                                                false,
+                                              );
 
                                               drawingPoints.add(null);
                                             });
@@ -695,18 +694,19 @@ class _PaintScreenState extends State<PaintScreen> {
                                                 //clean screen
                                                 image = null;
                                                 sendOffset(
-                                                    null,
-                                                    null,
-                                                    strokeWidth,
-                                                    MediaQuery.of(context)
-                                                        .size
-                                                        .height,
-                                                    MediaQuery.of(context)
-                                                        .size
-                                                        .width,
-                                                    selectedColor.toString(),
-                                                    false,
-                                                    true);
+                                                  null,
+                                                  null,
+                                                  strokeWidth,
+                                                  MediaQuery.of(context)
+                                                      .size
+                                                      .height,
+                                                  MediaQuery.of(context)
+                                                      .size
+                                                      .width,
+                                                  selectedColor.toString(),
+                                                  false,
+                                                  true,
+                                                );
                                               });
                                             }),
                                         SizedBox(
@@ -782,8 +782,9 @@ class _PaintScreenState extends State<PaintScreen> {
     ByteData byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     Uint8List pngBytes = byteData.buffer.asUint8List();
     imgbyte = pngBytes;
-    if (!(await Permission.storage.isGranted))
+    if (!(await Permission.storage.isGranted)) {
       await Permission.storage.request();
+    }
 
     final saved = await ImageGallerySaver.saveImage(
       Uint8List.fromList(pngBytes),
