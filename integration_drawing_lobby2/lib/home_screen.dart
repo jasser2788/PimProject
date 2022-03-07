@@ -1,7 +1,8 @@
+import 'package:PIM_Mokhtar/widgets/time_state.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'create_room_screen.dart';
 import 'join_room_screen.dart';
-import 'drawing_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key key}) : super(key: key);
@@ -60,14 +61,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: const Text(
                   "Join",
                   style: TextStyle(fontSize: 16),
-                ),
-              ),
-              ElevatedButton(
-                child: Text('drawing '),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const DrawingScreen(),
-                  ),
                 ),
               ),
             ],

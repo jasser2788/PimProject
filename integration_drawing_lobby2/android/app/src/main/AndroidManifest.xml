@@ -5,7 +5,7 @@
      android:name="android.permission.WRITE_EXTERNAL_STORAGE"
      android:maxSdkVersion="18" />
    <application
-        android:label="Pim_mokhtar"
+        android:label="Pim"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
         <activity

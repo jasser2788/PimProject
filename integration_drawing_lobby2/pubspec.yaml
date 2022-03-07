@@ -36,6 +36,7 @@ dependencies:
   fluentui_system_icons: ^1.1.161
   image_gallery_saver: ^1.7.1
   permission_handler: ^8.3.0
+  provider: ^6.0.2
 
 dev_dependencies:
   flutter_lints: ^1.0.0
