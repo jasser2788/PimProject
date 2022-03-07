@@ -215,8 +215,7 @@ class _PaintScreenState extends State<PaintScreen> {
           renderTextBlank(data['word']);
           isTextInputReadOnly = false;
           guessedUserCtr = 0;
-          return AlertDialog(
-              title: Center(child: Text('Word was $oldWord')));
+         
         });
                Navigator.of(context).pop();
               });
