@@ -206,27 +206,24 @@ class _PaintScreenState extends State<PaintScreen> {
 
       _socket.on('change-turn', (data) {
         String oldWord = dataOfRoom['word'];
+        showDialog(
+            context: context,
+            builder: (context) {
+              Future.delayed(Duration(seconds: 2), () {
         setState(() {
           dataOfRoom = data;
           renderTextBlank(data['word']);
           isTextInputReadOnly = false;
           guessedUserCtr = 0;
+          return AlertDialog(
+              title: Center(child: Text('Word was $oldWord')));
         });
-  //  Navigator.of(context).pop();
+               Navigator.of(context).pop();
+              });
         return AlertDialog(
             title: Center(child: Text('Word was $oldWord')));
-        /*showDialog(
-            context: context,
-            builder: (context) {
-              Future.delayed(Duration(seconds: 3), () {
-                setState(() {
-                  dataOfRoom = data;
-                  renderTextBlank(data['word']);
-                  isTextInputReadOnly = false;
-                });
-                Navigator.of(context).pop();
-              });
-            });*/
+
+      });
       });
 //chay
       _socket.on('stroke-width', (value) {
