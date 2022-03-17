@@ -101,15 +101,21 @@ io.on('connection', (socket) => {
                 let userPlayer = room[0].players.filter(
                     (player) => player.nickname === data.username
                 )
-              
+                if(data.timeTaken !== 0) {
+                    userPlayer[0].points += Math.round((200/ data.timeTaken) * 10);
+                }
                 room = await room[0].save();
-               
+                io.to(data.roomName).emit('msg', {
+                    username: data.username,
+                    msg: 'Guessed it!',
+                    guessedUserCtr: data.guessedUserCtr + 1,
+                })
                 socket.emit('closeInput', "");
             } else {
                 io.to(data.roomName).emit('msg', {
                     username: data.username,
                     msg: data.msg,
-                   
+                    guessedUserCtr: data.guessedUserCtr,
                 })
             }
         } catch(err) {

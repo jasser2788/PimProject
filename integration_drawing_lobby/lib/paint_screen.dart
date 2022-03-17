@@ -13,7 +13,6 @@ import 'waiting_lobby_screen.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import 'widgets/progress_bar.dart';
-import 'widgets/time_state.dart';
 
 class PaintScreen extends StatefulWidget {
   final Map<String, String> data;
@@ -26,7 +25,6 @@ class PaintScreen extends StatefulWidget {
 
 class _PaintScreenState extends State<PaintScreen> {
   // instantiation
-  var a;
   bool isjoin;
   GlobalKey globalKey = GlobalKey();
   ui.Image image;
@@ -38,12 +36,13 @@ class _PaintScreenState extends State<PaintScreen> {
 
   Offset point = const Offset(0, 0);
   var isLoadingSave = true;
-
+  Color msgColor;
   IO.Socket _socket;
   Map dataOfRoom = {};
   StrokeCap strokeType = StrokeCap.round;
   Color selectedColor = Colors.black;
   double opacity = 1;
+  int guessedUserCtr = 0;
   double strokeWidth = 2;
   List<Widget> textBlankWidget = [];
   ScrollController _scrollController = ScrollController();
@@ -148,7 +147,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   // Socket io client connection
   void connect() {
-    _socket = IO.io('http://192.168.1.5:3000', <String, dynamic>{
+    _socket = IO.io('http://172.17.12.243:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false
     });
@@ -194,8 +193,11 @@ class _PaintScreenState extends State<PaintScreen> {
       _socket.on('msg', (msgData) {
         setState(() {
           messages.add(msgData);
+          guessedUserCtr = msgData['guessedUserCtr'];
         });
-
+        if (guessedUserCtr == dataOfRoom['players'].length - 1) {
+          _socket.emit('change-turn', dataOfRoom['name']);
+        }
         _scrollController.animateTo(
             _scrollController.position.maxScrollExtent + 70,
             duration: Duration(milliseconds: 200),
@@ -203,24 +205,29 @@ class _PaintScreenState extends State<PaintScreen> {
       });
 
       _socket.on('change-turn', (data) {
-        setState(() {
-          dataOfRoom = data;
-          renderTextBlank(data['word']);
-          isTextInputReadOnly = false;
-        });
-        /*showDialog(
+        String oldWord = dataOfRoom['word'];
+
+        showDialog(
             context: context,
             builder: (context) {
-              Future.delayed(Duration(seconds: 3), () {
+              Future.delayed(Duration(seconds: 2), () {
                 setState(() {
                   dataOfRoom = data;
                   renderTextBlank(data['word']);
                   isTextInputReadOnly = false;
+                  guessedUserCtr = 0;
+                  _timer.cancel();
+                  _start = 0;
+                  drawingPoints = [];
+                  test = false;
                 });
                 Navigator.of(context).pop();
               });
-            });*/
+              return AlertDialog(
+                  title: Center(child: Text('Word was $oldWord')));
+            });
       });
+
 //chay
       _socket.on('stroke-width', (value) {
         setState(() {
@@ -261,16 +268,16 @@ class _PaintScreenState extends State<PaintScreen> {
       _timer = Timer.periodic(
         Duration(seconds: 1),
         (Timer timer) {
-          if (_start == 10) {
+          if (_start == 20) {
             setState(() {
               if (dataOfRoom['turn']['nickname'] == widget.data['nickname']) {
                 _socket.emit('change-turn', dataOfRoom['name']);
               }
 
               timer.cancel();
-              test = false;
+              /*test = false;
               _start = 0;
-              drawingPoints = [];
+              drawingPoints = [];*/
             });
           } else {
             setState(() {
@@ -281,8 +288,8 @@ class _PaintScreenState extends State<PaintScreen> {
       );
     }
     return ProgressBar(
-      value: 10 - _start,
-      totalvalue: 10,
+      value: 20 - _start,
+      totalvalue: 20,
     );
   }
 
@@ -321,10 +328,6 @@ class _PaintScreenState extends State<PaintScreen> {
                                     children: textBlankWidget,
                                   ),
 
-                                  ElevatedButton(onPressed: () {
-                                    _socket.emit(
-                                        'change-turn', dataOfRoom['name']);
-                                  }),
                                   SizedBox(
                                     height: 10,
                                   ),
@@ -368,14 +371,6 @@ class _PaintScreenState extends State<PaintScreen> {
                                   // Displaying messages
                                   Row(
                                     children: [
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) {},
-                                          ),
-                                        ),
-                                      ),
                                       Flexible(
                                         child: Container(
                                             height: MediaQuery.of(context)
@@ -390,6 +385,10 @@ class _PaintScreenState extends State<PaintScreen> {
                                                   var msg =
                                                       messages[index].values;
                                                   print(msg);
+                                                  msg.elementAt(1) ==
+                                                          'Guessed it!'
+                                                      ? msgColor = Colors.green
+                                                      : msgColor = Colors.blue;
                                                   return ListTile(
                                                     title: Text(
                                                       msg.elementAt(0),
@@ -401,8 +400,8 @@ class _PaintScreenState extends State<PaintScreen> {
                                                     ),
                                                     subtitle: Text(
                                                       msg.elementAt(1),
-                                                      style: const TextStyle(
-                                                          color: Colors.grey,
+                                                      style: TextStyle(
+                                                          color: msgColor,
                                                           fontSize: 16),
                                                     ),
                                                   );
@@ -427,7 +426,10 @@ class _PaintScreenState extends State<PaintScreen> {
                                                 'msg': value.trim(),
                                                 'word': dataOfRoom['word'],
                                                 'roomName': widget.data['name'],
+                                                'guessedUserCtr':
+                                                    guessedUserCtr,
                                               };
+
                                               _socket.emit('msg', map);
                                               controller.clear();
                                             }
@@ -485,6 +487,9 @@ class _PaintScreenState extends State<PaintScreen> {
                                             itemBuilder: (context, index) {
                                               var msg = messages[index].values;
                                               print(msg);
+                                              msg.elementAt(1) == 'Guessed it!'
+                                                  ? msgColor = Colors.green
+                                                  : msgColor = Colors.blue;
                                               return ListTile(
                                                 title: Text(
                                                   msg.elementAt(0),
@@ -496,61 +501,17 @@ class _PaintScreenState extends State<PaintScreen> {
                                                 ),
                                                 subtitle: Text(
                                                   msg.elementAt(1),
-                                                  style: const TextStyle(
-                                                      color: Colors.grey,
+                                                  style: TextStyle(
+                                                      color: msgColor,
                                                       fontSize: 16),
                                                 ),
                                               );
                                             })),
                                   ),
-                                  /*  ChangeNotifierProvider<TimeState>(
-                                    create: (context) => TimeState(),
-                                    child: Column(
-                                      children: [
-                                        Consumer<TimeState>(
-                                          builder: (context, value, child) =>
-                                              ProgressBar(
-                                            value: 10 - value.time,
-                                            totalvalue: 10,
-                                          ),
-                                        ),
-                                        SizedBox(height: 10),
-                                        Consumer<TimeState>(
-                                            builder: (context, value, child) =>
-                                                timetest(value)
-                                                    ? ElevatedButton(
-                                                        onPressed: () {
-                                                          Timer.periodic(
-                                                              Duration(
-                                                                  seconds: 1),
-                                                              (timer) {
-                                                            value.time += 1;
-                                                            if (value.time ==
-                                                                10) {
-                                                              timer.cancel();
-                                                            }
-                                                          });
-                                                        },
-                                                        child: Text("zz"))
-                                                    : ElevatedButton(
-                                                        onPressed: () {},
-                                                        child: Text("aaa"))),
-                                      ],
-                                    ),
-                                  ),*/
 
-                                  /* ProgressBar(
-                                    value: 10 - _start,
-                                    totalvalue: 10,
-                                  ),
-                                  startTimer()
-                                      ? ElevatedButton(
-                                          onPressed: () {}, child: Text("aaa"))
-                                      : ElevatedButton(
-                                          onPressed: () {}, child: Text("bbb")),*/
                                   startTimer(),
                                   RepaintBoundary(
-                                    // key: globalKey,
+                                    key: globalKey,
                                     child: Padding(
                                       padding:
                                           const EdgeInsets.fromLTRB(1, 8, 1, 1),
@@ -682,7 +643,7 @@ class _PaintScreenState extends State<PaintScreen> {
                                             child: Icon(
                                                 FluentIcons.eraser_20_filled)),
                                         SizedBox(
-                                          width: 10,
+                                          width: 1,
                                         ),
                                         FloatingActionButton(
                                             heroTag: "clear",
@@ -710,7 +671,7 @@ class _PaintScreenState extends State<PaintScreen> {
                                               });
                                             }),
                                         SizedBox(
-                                          width: 10,
+                                          width: 1,
                                         ),
                                         isLoadingSave
                                             ? FloatingActionButton(
