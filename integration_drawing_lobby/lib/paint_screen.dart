@@ -2,35 +2,38 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui';
 import 'dart:ui' as ui;
+import 'package:PIM_Mokhtar/player_scoreboard__drawer.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'final_leaderboard.dart';
 import 'home_screen.dart';
 import 'waiting_lobby_screen.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import 'widgets/progress_bar.dart';
-import 'widgets/time_state.dart';
 
 class PaintScreen extends StatefulWidget {
+
   final Map<String, String> data;
   final String screenFrom;
   PaintScreen({this.data, this.screenFrom});
 
   @override
   _PaintScreenState createState() => _PaintScreenState();
+
 }
 
 class _PaintScreenState extends State<PaintScreen> {
   // instantiation
-  var a;
   bool isjoin;
   GlobalKey globalKey = GlobalKey();
   ui.Image image;
-  Uint8List imgbyte;
+  Uint8List imgbyte = Uint8List.fromList([0, 2, 5, 7, 42, 255]);
 
   DrawingPainter drawingPainter;
 
@@ -38,7 +41,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   Offset point = const Offset(0, 0);
   var isLoadingSave = true;
-
+  Color msgColor;
   IO.Socket _socket;
   Map dataOfRoom = {};
   StrokeCap strokeType = StrokeCap.round;
@@ -50,9 +53,14 @@ class _PaintScreenState extends State<PaintScreen> {
   ScrollController _scrollController = ScrollController();
   TextEditingController controller = TextEditingController();
   List<Map> messages = [];
-
+  var scaffoldKey = GlobalKey<ScaffoldState>();
   List<Map> scoreboard = [];
   bool isTextInputReadOnly = false;
+  int maxPoints = 0;
+  String winner = "";
+  bool ShowFinalLeaderboard = false;
+
+
   List<dynamic> colors = [
     Colors.red[700],
     Colors.black,
@@ -63,7 +71,7 @@ class _PaintScreenState extends State<PaintScreen> {
   ];
 
   bool isJoin = false;
-  bool isShowFinalLeaderboard = false;
+
   void sendOffset(double x, double y, double width, double scrheight,
       double scrwidth, String color, bool end, bool clear) {
     var messageJson = {
@@ -75,6 +83,7 @@ class _PaintScreenState extends State<PaintScreen> {
       "color": color,
       "end": end,
       "clear": clear,
+      "romName": widget.data['name']
       // "id": socket.id
     };
     _socket.emit('coordinates', messageJson);
@@ -91,40 +100,42 @@ class _PaintScreenState extends State<PaintScreen> {
       /*print((data["dx"] * MediaQuery.of(context).size.height) /
           data["scrheight"]);*/
 
-      if (this.mounted) {
-        setState(() {
-          //   print(data["color"]);
-          if (pointdata["clear"] == true) {
-            setState(() {
-              // image = null;
-              drawingPoints = [];
-            });
-          } else {
-            if (pointdata["end"] == false) {
-              drawingPoints.add(
-                DrawingPoint(
-                  point.translate(
-                      //double.parse('${pointdata["dx"]}'),
-                      // double.parse('${pointdata["dy"]}')scrwidth
-                      double.parse(
-                          '${double.parse('${pointdata["dx"]}') * MediaQuery.of(context).size.width / double.parse('${pointdata["scrwidth"]}')}'),
-                      double.parse(
-                          '${double.parse('${pointdata["dy"]}') * MediaQuery.of(context).size.height / double.parse('${pointdata["scrheight"]}')}')),
-                  Paint()
-                    ..color = color
-                    ..isAntiAlias = true
-                    ..strokeWidth = widht
-                    ..strokeCap = StrokeCap.round,
-                ),
-              );
+      if (pointdata['romName'] == widget.data['name']) {
+        if (this.mounted) {
+          setState(() {
+            //   print(data["color"]);
+            if (pointdata["clear"] == true) {
+              setState(() {
+                // image = null;
+                drawingPoints = [];
+              });
             } else {
-              drawingPoints.add(null);
+              if (pointdata["end"] == false) {
+                drawingPoints.add(
+                  DrawingPoint(
+                    point.translate(
+                        //double.parse('${pointdata["dx"]}'),
+                        // double.parse('${pointdata["dy"]}')scrwidth
+                        double.parse(
+                            '${double.parse('${pointdata["dx"]}') * MediaQuery.of(context).size.width / double.parse('${pointdata["scrwidth"]}')}'),
+                        double.parse(
+                            '${double.parse('${pointdata["dy"]}') * MediaQuery.of(context).size.height / double.parse('${pointdata["scrheight"]}')}')),
+                    Paint()
+                      ..color = color
+                      ..isAntiAlias = true
+                      ..strokeWidth = widht
+                      ..strokeCap = StrokeCap.round,
+                  ),
+                );
+              } else {
+                drawingPoints.add(null);
 
-              // drawingPoints.add(null);
-              // generateImage();
+                // drawingPoints.add(null);
+                // generateImage();
+              }
             }
-          }
-        });
+          });
+        }
       } //  print(data["id"]);
     });
   }
@@ -146,10 +157,11 @@ class _PaintScreenState extends State<PaintScreen> {
 
   // Socket io client connection
   void connect() {
-    _socket = IO.io('http://192.168.1.102:3000', <String, dynamic>{
+    _socket = IO.io('http://192.168.1.4:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false
     });
+
     _socket.connect();
     setUpSocketListner();
 
@@ -158,7 +170,6 @@ class _PaintScreenState extends State<PaintScreen> {
     } else {
       _socket.emit('join-game', widget.data);
     }
-
     // listen to socket
     _socket.onConnect((data) {
       print('connected!');
@@ -170,17 +181,15 @@ class _PaintScreenState extends State<PaintScreen> {
           dataOfRoom = roomData;
         });
 
-        //chay
-        if (roomData['isJoin'] != true) {}
-        //chay
         scoreboard.clear();
-        /* for (int i = 0; i < roomData['players'].length; i++) {
+         for (int i = 0; i < roomData['players'].length; i++) {
           setState(() {
             scoreboard.add({
               'username': roomData['players'][i]['nickname'],
+              'points': roomData['players'][i]['points'].toString()
             });
           });
-        }*/
+        }
       });
       //chay
       _socket.on(
@@ -197,7 +206,6 @@ class _PaintScreenState extends State<PaintScreen> {
         if (guessedUserCtr == dataOfRoom['players'].length - 1) {
           _socket.emit('change-turn', dataOfRoom['name']);
         }
-
         _scrollController.animateTo(
             _scrollController.position.maxScrollExtent + 70,
             duration: Duration(milliseconds: 200),
@@ -206,31 +214,82 @@ class _PaintScreenState extends State<PaintScreen> {
 
       _socket.on('change-turn', (data) {
         String oldWord = dataOfRoom['word'];
+
         showDialog(
             context: context,
             builder: (context) {
               Future.delayed(Duration(seconds: 2), () {
-        setState(() {
-          dataOfRoom = data;
-          renderTextBlank(data['word']);
-          isTextInputReadOnly = false;
-          guessedUserCtr = 0;
-         
-        });
-               Navigator.of(context).pop();
+                setState(() {
+                  dataOfRoom = data;
+                  renderTextBlank(data['word']);
+                  isTextInputReadOnly = false;
+                  guessedUserCtr = 0;
+                  _timer.cancel();
+                  _start = 0;
+                  drawingPoints = [];
+                  test = false;
+                });
+                Navigator.of(context).pop();
               });
-        return AlertDialog(
-            title: Center(child: Text('Word was $oldWord')));
-
+              return AlertDialog(
+                  title: Center(child: Text('Word was $oldWord')));
+            });
       });
+      _socket.on('updateScore', (roomData) {
+        scoreboard.clear();
+        for (int i = 0; i < roomData['players'].length; i++) {
+          setState(() {
+            scoreboard.add({
+              'username': roomData['players'][i]['nickname'],
+              'points': roomData['players'][i]['points'].toString()
+            });
+          });
+        }
       });
-//chay
-      _socket.on('stroke-width', (value) {
+      _socket.on("show-leaderboard", (roomPlayers) {
+        scoreboard.clear();
+        for (int i = 0; i < roomPlayers.length; i++) {
+          setState(() {
+            scoreboard.add({
+              'username': roomPlayers[i]['nickname'],
+              'points': roomPlayers[i]['points'].toString()
+            });
+          });
+          if (maxPoints < int.parse(scoreboard[i]['points'])) {
+            winner = scoreboard[i]['username'];
+            maxPoints = int.parse(scoreboard[i]['points']);
+          }
+        }
         setState(() {
-          strokeWidth = value.toDouble();
+          _timer.cancel();
+          ShowFinalLeaderboard = true;
         });
       });
-//chay
+      void configLoading() {
+        EasyLoading.instance
+          ..displayDuration = const Duration(milliseconds: 2000)
+          ..indicatorType = EasyLoadingIndicatorType.fadingCircle
+          ..loadingStyle = EasyLoadingStyle.dark
+          ..indicatorSize = 45.0
+          ..radius = 10.0
+          ..progressColor = Colors.yellow
+          ..backgroundColor = Colors.green
+          ..indicatorColor = Colors.yellow
+          ..textColor = Colors.yellow
+          ..maskColor = Colors.blue.withOpacity(0.5)
+          ..userInteractions = true
+          ..dismissOnTap = false;
+        // ..customAnimation = CustomAnimation();
+      }
+
+
+
+      _socket.on('closeInput', (_) {
+        _socket.emit('updateScore', widget.data['name']);
+        setState(() {
+          isTextInputReadOnly = true;
+        });
+      });
       _socket.on('user-disconnected', (data) {
         scoreboard.clear();
         for (int i = 0; i < data['players'].length; i++) {
@@ -255,20 +314,8 @@ class _PaintScreenState extends State<PaintScreen> {
   }
 
   Timer _timer;
-  int _start = 10;
+  int _start = 0;
 
-  /*timetest(TimeState value) {
-    if (value.time <= 10) {
-      print(value.time);
-      Timer.periodic(Duration(seconds: 1), (timer) {
-        value.time += 1;
-        if (value.time == 10) {
-          timer.cancel();
-        }
-      });
-    }
-    return true;
-  }*/
   var test = false;
   startTimer() {
     if (!test) {
@@ -276,25 +323,31 @@ class _PaintScreenState extends State<PaintScreen> {
       _timer = Timer.periodic(
         Duration(seconds: 1),
         (Timer timer) {
-          if (_start == 0) {
+          if (_start == 60) {
             setState(() {
+              if (dataOfRoom['turn']['nickname'] == widget.data['nickname']) {
+                _socket.emit('change-turn', dataOfRoom['name']);
+              }
+
               timer.cancel();
+              /*test = false;
+              _start = 0;
+              drawingPoints = [];*/
             });
           } else {
             setState(() {
-              _start--;
+              _start++;
             });
           }
         },
       );
     }
     return ProgressBar(
-      value: 10 - _start,
-      totalvalue: 10,
+      value: 60 - _start,
+      totalvalue: 60,
     );
   }
 
-  var isDrowing = false;
   @override
   Widget build(BuildContext context) {
     final double width = MediaQuery.of(context).size.width;
@@ -303,9 +356,13 @@ class _PaintScreenState extends State<PaintScreen> {
 
     return Scaffold(
       //resizeToAvoidBottomInset: false,
+      key: scaffoldKey,
       backgroundColor: Colors.white,
+      drawer: PlayerScore(scoreboard),
       body: dataOfRoom != null
           ? dataOfRoom['isJoin'] != true
+          ? !ShowFinalLeaderboard
+
               ? Container(
                   color: Colors.white,
                   child: Stack(
@@ -330,10 +387,10 @@ class _PaintScreenState extends State<PaintScreen> {
                                     children: textBlankWidget,
                                   ),
 
-                                  ElevatedButton(onPressed: () {
-                                    _socket.emit(
-                                        'change-turn', dataOfRoom['name']);
-                                  }),
+                                  SizedBox(
+                                    height: 10,
+                                  ),
+                                  startTimer(),
 
                                   Padding(
                                     padding:
@@ -373,14 +430,6 @@ class _PaintScreenState extends State<PaintScreen> {
                                   // Displaying messages
                                   Row(
                                     children: [
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) {},
-                                          ),
-                                        ),
-                                      ),
                                       Flexible(
                                         child: Container(
                                             height: MediaQuery.of(context)
@@ -395,6 +444,10 @@ class _PaintScreenState extends State<PaintScreen> {
                                                   var msg =
                                                       messages[index].values;
                                                   print(msg);
+                                                  msg.elementAt(1) ==
+                                                          'Guessed it!'
+                                                      ? msgColor = Colors.green
+                                                      : msgColor = Colors.blue;
                                                   return ListTile(
                                                     title: Text(
                                                       msg.elementAt(0),
@@ -406,8 +459,8 @@ class _PaintScreenState extends State<PaintScreen> {
                                                     ),
                                                     subtitle: Text(
                                                       msg.elementAt(1),
-                                                      style: const TextStyle(
-                                                          color: Colors.grey,
+                                                      style: TextStyle(
+                                                          color: msgColor,
                                                           fontSize: 16),
                                                     ),
                                                   );
@@ -415,11 +468,8 @@ class _PaintScreenState extends State<PaintScreen> {
                                       ),
                                     ],
                                   ),
-
-                                  dataOfRoom['turn']['nickname'] !=
-                                      widget.data['nickname']
-                                  ?Align(
-                                    alignment: Alignment.bottomCenter,
+                                  Align(
+                                    alignment: (Alignment.bottomCenter),
                                     child: Container(
                                         margin: EdgeInsets.symmetric(
                                             horizontal: 20),
@@ -435,8 +485,12 @@ class _PaintScreenState extends State<PaintScreen> {
                                                 'msg': value.trim(),
                                                 'word': dataOfRoom['word'],
                                                 'roomName': widget.data['name'],
-                                                'guessedUserCtr': guessedUserCtr,
+                                                'guessedUserCtr':guessedUserCtr,
+                                                'totalTime': 60,
+                                                'timeTaken': 60 - _start,
+
                                               };
+
                                               _socket.emit('msg', map);
                                               controller.clear();
                                             }
@@ -470,7 +524,6 @@ class _PaintScreenState extends State<PaintScreen> {
                                           textInputAction: TextInputAction.done,
                                         )),
                                   )
-                                     : Container(),
                                 ],
                               ),
                             )
@@ -495,6 +548,9 @@ class _PaintScreenState extends State<PaintScreen> {
                                             itemBuilder: (context, index) {
                                               var msg = messages[index].values;
                                               print(msg);
+                                              msg.elementAt(1) == 'Guessed it!'
+                                                  ? msgColor = Colors.green
+                                                  : msgColor = Colors.blue;
                                               return ListTile(
                                                 title: Text(
                                                   msg.elementAt(0),
@@ -506,69 +562,24 @@ class _PaintScreenState extends State<PaintScreen> {
                                                 ),
                                                 subtitle: Text(
                                                   msg.elementAt(1),
-                                                  style: const TextStyle(
-                                                      color: Colors.grey,
+                                                  style: TextStyle(
+                                                      color: msgColor,
                                                       fontSize: 16),
                                                 ),
                                               );
                                             })),
                                   ),
-                                  /*  ChangeNotifierProvider<TimeState>(
-                                    create: (context) => TimeState(),
-                                    child: Column(
-                                      children: [
-                                        Consumer<TimeState>(
-                                          builder: (context, value, child) =>
-                                              ProgressBar(
-                                            value: 10 - value.time,
-                                            totalvalue: 10,
-                                          ),
-                                        ),
-                                        SizedBox(height: 10),
-                                        Consumer<TimeState>(
-                                            builder: (context, value, child) =>
-                                                timetest(value)
-                                                    ? ElevatedButton(
-                                                        onPressed: () {
-                                                          Timer.periodic(
-                                                              Duration(
-                                                                  seconds: 1),
-                                                              (timer) {
-                                                            value.time += 1;
-                                                            if (value.time ==
-                                                                10) {
-                                                              timer.cancel();
-                                                            }
-                                                          });
-                                                        },
-                                                        child: Text("zz"))
-                                                    : ElevatedButton(
-                                                        onPressed: () {},
-                                                        child: Text("aaa"))),
-                                      ],
-                                    ),
-                                  ),*/
 
-                                  /* ProgressBar(
-                                    value: 10 - _start,
-                                    totalvalue: 10,
-                                  ),
-                                  startTimer()
-                                      ? ElevatedButton(
-                                          onPressed: () {}, child: Text("aaa"))
-                                      : ElevatedButton(
-                                          onPressed: () {}, child: Text("bbb")),*/
                                   startTimer(),
-                                  Text("$_start"),
                                   RepaintBoundary(
-                                    // key: globalKey,
+                                    key: globalKey,
                                     child: Padding(
                                       padding:
                                           const EdgeInsets.fromLTRB(1, 8, 1, 1),
                                       child: Container(
                                         width: width * 0.95,
                                         height: height * 0.45, //0.72,
-                                        decoration: const BoxDecoration(
+                                        decoration: BoxDecoration(
                                             borderRadius: BorderRadius.all(
                                                 Radius.circular(20.0)),
                                             boxShadow: [
@@ -580,18 +591,17 @@ class _PaintScreenState extends State<PaintScreen> {
                                         child: GestureDetector(
                                           onPanStart: (details) {
                                             sendOffset(
-                                                details.localPosition.dx,
-                                                details.localPosition.dy,
-                                                strokeWidth,
-                                                MediaQuery.of(context)
-                                                    .size
-                                                    .height,
-                                                MediaQuery.of(context)
-                                                    .size
-                                                    .width,
-                                                selectedColor.toString(),
-                                                false,
-                                                false);
+                                              details.localPosition.dx,
+                                              details.localPosition.dy,
+                                              strokeWidth,
+                                              MediaQuery.of(context)
+                                                  .size
+                                                  .height,
+                                              MediaQuery.of(context).size.width,
+                                              selectedColor.toString(),
+                                              false,
+                                              false,
+                                            );
 
                                             setState(() {
                                               drawingPoints.add(
@@ -611,18 +621,17 @@ class _PaintScreenState extends State<PaintScreen> {
                                             //  a = drawingPoints.length;
 
                                             sendOffset(
-                                                details.localPosition.dx,
-                                                details.localPosition.dy,
-                                                strokeWidth,
-                                                MediaQuery.of(context)
-                                                    .size
-                                                    .height,
-                                                MediaQuery.of(context)
-                                                    .size
-                                                    .width,
-                                                selectedColor.toString(),
-                                                false,
-                                                false);
+                                              details.localPosition.dx,
+                                              details.localPosition.dy,
+                                              strokeWidth,
+                                              MediaQuery.of(context)
+                                                  .size
+                                                  .height,
+                                              MediaQuery.of(context).size.width,
+                                              selectedColor.toString(),
+                                              false,
+                                              false,
+                                            );
                                             setState(() {
                                               drawingPoints.add(
                                                 DrawingPoint(
@@ -641,18 +650,19 @@ class _PaintScreenState extends State<PaintScreen> {
                                           onPanEnd: (details) {
                                             setState(() {
                                               sendOffset(
-                                                  null,
-                                                  null,
-                                                  strokeWidth,
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .height,
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .width,
-                                                  selectedColor.toString(),
-                                                  true,
-                                                  false);
+                                                null,
+                                                null,
+                                                strokeWidth,
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .height,
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .width,
+                                                selectedColor.toString(),
+                                                true,
+                                                false,
+                                              );
 
                                               drawingPoints.add(null);
                                             });
@@ -694,7 +704,7 @@ class _PaintScreenState extends State<PaintScreen> {
                                             child: Icon(
                                                 FluentIcons.eraser_20_filled)),
                                         SizedBox(
-                                          width: 10,
+                                          width: 1,
                                         ),
                                         FloatingActionButton(
                                             heroTag: "clear",
@@ -706,22 +716,23 @@ class _PaintScreenState extends State<PaintScreen> {
                                                 //clean screen
                                                 image = null;
                                                 sendOffset(
-                                                    null,
-                                                    null,
-                                                    strokeWidth,
-                                                    MediaQuery.of(context)
-                                                        .size
-                                                        .height,
-                                                    MediaQuery.of(context)
-                                                        .size
-                                                        .width,
-                                                    selectedColor.toString(),
-                                                    false,
-                                                    true);
+                                                  null,
+                                                  null,
+                                                  strokeWidth,
+                                                  MediaQuery.of(context)
+                                                      .size
+                                                      .height,
+                                                  MediaQuery.of(context)
+                                                      .size
+                                                      .width,
+                                                  selectedColor.toString(),
+                                                  false,
+                                                  true,
+                                                );
                                               });
                                             }),
                                         SizedBox(
-                                          width: 10,
+                                          width: 1,
                                         ),
                                         isLoadingSave
                                             ? FloatingActionButton(
@@ -735,19 +746,26 @@ class _PaintScreenState extends State<PaintScreen> {
                                       ],
                                     ),
                                   ),
+                                  SafeArea(
+                                    child: IconButton(
+                                      icon: Icon(Icons.menu, color: Colors.black),
+                                      onPressed: () =>
+                                          scaffoldKey.currentState.openDrawer(),
+                                    ),
+                                  ),
                                 ],
-                              ),
-                            ),
+                              ) ,
+                            ) ,
                     ],
-                  ),
-                )
+                  )
+                ) : FinalLeaderboard(scoreboard,winner )
               : WaitingLobbyScreen(
                   lobbyName: dataOfRoom['name'],
                   noOfPlayers: dataOfRoom['players'].length,
                   occupancy: dataOfRoom['occupancy'],
                   players: dataOfRoom['players'],
                 )
-          : Center(child: CircularProgressIndicator()),
+         : Center(child: CircularProgressIndicator()),
       /* bottomNavigationBar: isDrowing == true
             ? BottomAppBar(
                 child: Container(
@@ -793,8 +811,9 @@ class _PaintScreenState extends State<PaintScreen> {
     ByteData byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     Uint8List pngBytes = byteData.buffer.asUint8List();
     imgbyte = pngBytes;
-    if (!(await Permission.storage.isGranted))
+    if (!(await Permission.storage.isGranted)) {
       await Permission.storage.request();
+    }
 
     final saved = await ImageGallerySaver.saveImage(
       Uint8List.fromList(pngBytes),

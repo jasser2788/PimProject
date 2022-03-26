@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'home_screen.dart';
 
 void main() {
   runApp(const MyApp());
+
 }
 
 class MyApp extends StatelessWidget {
@@ -20,4 +22,5 @@ class MyApp extends StatelessWidget {
       home: const HomeScreen(),
     );
   }
+
 }
