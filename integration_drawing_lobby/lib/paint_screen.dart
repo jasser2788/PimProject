@@ -147,7 +147,7 @@ class _PaintScreenState extends State<PaintScreen> {
 
   // Socket io client connection
   void connect() {
-    _socket = IO.io('http://172.17.12.243:3000', <String, dynamic>{
+    _socket = IO.io('http://192.168.215.1:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false
     });
